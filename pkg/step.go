@@ -17,6 +17,7 @@ type Step interface {
 	GetName() string
 	Run(context ExecutionContext) (StepStringOutput, error)
 	Silenced() bool
+	LoggingOpts() LoggingOptions
 }
 
 type StepStringOutput struct {

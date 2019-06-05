@@ -27,7 +27,7 @@ func (l OrStepLoader) LoadStep(config StepDef, context LoadingContext) (Step, er
 	result := OrStep{
 		Name:   config.GetName(),
 		Steps:  []Step{},
-		Silent: config.Silent(),
+		Silent: config.GetBool("silent"),
 	}
 
 	for i, s := range steps {
@@ -54,6 +54,42 @@ func (l OrStepLoader) LoadStep(config StepDef, context LoadingContext) (Step, er
 		result.Steps = append(result.Steps, step)
 	}
 
+	var loggingOptions *LoggingOptions
+	outputOptionsContainer, ok := config.Get("logging").(map[interface{}]interface{})
+	if ok {
+		loggingOptions = &LoggingOptions{
+			SuppressStdOut:          false,
+			SuppressStdErr:          false,
+			RedirectStdErrToStdOut:  false,
+			ExitErrorLogLevel:       "error",
+			LogMessagePrefixApp:     "%s%s ≫ ",
+			LogMessagePrefixAppTask: "%s%s.%s ≫ ",
+		}
+		if v, ok := outputOptionsContainer["suppress_stdout"].(bool); ok {
+			loggingOptions.SuppressStdOut = v
+		}
+		if v, ok := outputOptionsContainer["suppress_stderr"].(bool); ok {
+			loggingOptions.SuppressStdErr = v
+		}
+		if v, ok := outputOptionsContainer["exit_error_log_level"].(string); ok {
+			loggingOptions.ExitErrorLogLevel = v
+		}
+		if v, ok := outputOptionsContainer["redirect_stderr_to_stdout"].(bool); ok {
+			loggingOptions.RedirectStdErrToStdOut = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix"].(string); ok {
+			loggingOptions.LogMessagePrefix = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix_app"].(string); ok {
+			loggingOptions.LogMessagePrefixApp = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix_app_task"].(string); ok {
+			loggingOptions.LogMessagePrefixAppTask = v
+		}
+
+		result.loggingOptions = *loggingOptions
+	}
+
 	return result, nil
 }
 
@@ -62,9 +98,10 @@ func NewOrStepLoader() OrStepLoader {
 }
 
 type OrStep struct {
-	Name   string
-	Steps  []Step
-	Silent bool
+	Name           string
+	Steps          []Step
+	Silent         bool
+	loggingOptions LoggingOptions
 }
 
 func (s OrStep) Run(context ExecutionContext) (StepStringOutput, error) {
@@ -87,4 +124,8 @@ func (s OrStep) GetName() string {
 
 func (s OrStep) Silenced() bool {
 	return s.Silent
+}
+
+func (s OrStep) LoggingOpts() LoggingOptions {
+	return s.loggingOptions
 }

@@ -81,6 +81,9 @@ func (p Application) UpdateLoggingConfiguration() error {
 				logrus.DebugLevel: p.Viper.Get("log_color_debug").(string),
 				logrus.TraceLevel: p.Viper.Get("log_color_trace").(string),
 			},
+			prefixes: map[string]string{
+
+			},
 		})
 	} else if p.Output == "message" {
 		p.Log.SetFormatter(&MessageOnlyFormatter{})
@@ -96,10 +99,10 @@ func (p Application) RunTaskForKeyString(keyStr string, args []string, arguments
 }
 
 func (p Application) Run(taskName TaskName, args []string) error {
-	errMsg, err := p.RunTask(taskName, args, task.NewArguments(), map[string]interface{}{}, false)
+	output, err := p.RunTask(taskName, args, task.NewArguments(), map[string]interface{}{}, false)
 
 	if err != nil {
-		return CommandError{error: err, TaskName: taskName, Cause: errMsg}
+		return CommandError{error: err, TaskName: taskName, Cause: output}
 	}
 	return nil
 }

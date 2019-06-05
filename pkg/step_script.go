@@ -24,83 +24,115 @@ func (l ScriptStepLoader) LoadStep(def StepDef, context LoadingContext) (Step, e
 	script, isStr := def.Script()
 
 	var runConf *RunnerConfig
-	{
-		runner, ok := def.Get("runner").(map[string]interface{})
-		log.Debugf("runner: %+v", runner)
-		log.Debugf("def: %+v", def)
-		if ok {
-			args := []string{}
-			switch a := runner["args"].(type) {
-			case []interface{}:
-				for _, arg := range a {
-					args = append(args, arg.(string))
-				}
+	var loggingOptions *LoggingOptions
+	outputOptionsContainer, ok := def.Get("logging").(map[interface{}]interface{})
+	if ok {
+		loggingOptions = &LoggingOptions{
+			SuppressStdOut:          false,
+			SuppressStdErr:          false,
+			RedirectStdErrToStdOut:  false,
+			ExitErrorLogLevel:       "error",
+			LogMessagePrefix:        "%s%s\n",
+			LogMessagePrefixApp:     "%s%s ≫ ",
+			LogMessagePrefixAppTask: "%s%s.%s ≫ ",
+		}
+		if v, ok := outputOptionsContainer["suppress_stdout"].(bool); ok {
+			loggingOptions.SuppressStdOut = v
+		}
+		if v, ok := outputOptionsContainer["suppress_stderr"].(bool); ok {
+			loggingOptions.SuppressStdErr = v
+		}
+		if v, ok := outputOptionsContainer["exit_error_log_level"].(string); ok {
+			loggingOptions.ExitErrorLogLevel = v
+		}
+		if v, ok := outputOptionsContainer["redirect_stderr_to_stdout"].(bool); ok {
+			loggingOptions.RedirectStdErrToStdOut = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix"].(string); ok {
+			loggingOptions.LogMessagePrefix = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix_app"].(string); ok {
+			loggingOptions.LogMessagePrefixApp = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix_app_task"].(string); ok {
+			loggingOptions.LogMessagePrefixAppTask = v
+		}
+	}
+
+	runner, ok := def.Get("runner").(map[string]interface{})
+	log.Debugf("runner: %+v", runner)
+	log.Debugf("def: %+v", def)
+	if ok {
+		args := []string{}
+		switch a := runner["args"].(type) {
+		case []interface{}:
+			for _, arg := range a {
+				args = append(args, arg.(string))
 			}
-			artifacts := []Artifact{}
-			switch rawArts := runner["artifacts"].(type) {
-			case []interface{}:
-				for _, rawArt := range rawArts {
-					switch art := rawArt.(type) {
-					case map[interface{}]interface{}:
-						a := Artifact{
-							Name: art["name"].(string),
-							Path: art["path"].(string),
-							Via:  art["via"].(string),
-						}
-						artifacts = append(artifacts, a)
-					default:
-						panic(fmt.Errorf("unexpected type of artifact"))
+		}
+		artifacts := []Artifact{}
+		switch rawArts := runner["artifacts"].(type) {
+		case []interface{}:
+			for _, rawArt := range rawArts {
+				switch art := rawArt.(type) {
+				case map[interface{}]interface{}:
+					a := Artifact{
+						Name: art["name"].(string),
+						Path: art["path"].(string),
+						Via:  art["via"].(string),
 					}
+					artifacts = append(artifacts, a)
+				default:
+					panic(fmt.Errorf("unexpected type of artifact"))
 				}
-			case nil:
+			}
+		case nil:
 
-			default:
-				panic(fmt.Errorf("unexpected type of artifacts"))
+		default:
+			panic(fmt.Errorf("unexpected type of artifacts"))
+		}
+		runConf = &RunnerConfig{
+			Args:      args,
+			Artifacts: artifacts,
+		}
+		if image, ok := runner["image"].(string); ok {
+			runConf.Image = image
+		}
+		if entrypoint, ok := runner["entrypoint"].(string); ok {
+			runConf.Entrypoint = &entrypoint
+		}
+		if command, ok := runner["command"].(string); ok {
+			runConf.Command = command
+		}
+		if envfile, ok := runner["envfile"].(string); ok {
+			runConf.Envfile = envfile
+		}
+		if environments, ok := runner["env"].(map[interface{}]interface{}); ok {
+			env := make(map[string]string, len(environments))
+			for k, v := range environments {
+				env[k.(string)] = v.(string)
 			}
-			runConf = &RunnerConfig{
-				Args:      args,
-				Artifacts: artifacts,
-			}
-			if image, ok := runner["image"].(string); ok {
-				runConf.Image = image
-			}
-			if entrypoint, ok := runner["entrypoint"].(string); ok {
-				runConf.Entrypoint = &entrypoint
-			}
-			if command, ok := runner["command"].(string); ok {
-				runConf.Command = command
-			}
-			if envfile, ok := runner["envfile"].(string); ok {
-				runConf.Envfile = envfile
-			}
-			if environments, ok := runner["env"].(map[interface{}]interface{}); ok {
-				env := make(map[string]string, len(environments))
-				for k, v := range environments {
-					env[k.(string)] = v.(string)
-				}
-				runConf.Env = env
-			}
-
-			if volumes, ok := runner["volumes"].([]interface{}); ok {
-				vols := make([]string, len(volumes))
-				for i, v := range volumes {
-					vols[i] = v.(string)
-				}
-				runConf.Volumes = vols
-			}
-
-			if net, ok := runner["net"].(string); ok {
-				runConf.Net = net
-			}
-
-			if workdir, ok := runner["workdir"].(string); ok {
-				runConf.Workdir = workdir
-			}
-
-		} else {
-			log.Debugf("runner wasn't expected type of map: %+v", runner)
+			runConf.Env = env
 		}
 
+		if volumes, ok := runner["volumes"].([]interface{}); ok {
+			vols := make([]string, len(volumes))
+			for i, v := range volumes {
+				vols[i] = v.(string)
+			}
+			runConf.Volumes = vols
+		}
+
+		if net, ok := runner["net"].(string); ok {
+			runConf.Net = net
+		}
+
+		if workdir, ok := runner["workdir"].(string); ok {
+			runConf.Workdir = workdir
+		}
+
+	} else {
+		log.Debugf("runner wasn't expected type of map: %+v", runner)
 	}
 
 	log.Debugf("step config: %v", def)
@@ -109,10 +141,13 @@ func (l ScriptStepLoader) LoadStep(def StepDef, context LoadingContext) (Step, e
 		step := ScriptStep{
 			Name:   def.GetName(),
 			Code:   script,
-			Silent: def.Silent(),
+			Silent: def.GetBool("silent"),
 		}
 		if runConf != nil {
 			step.RunnerConfig = *runConf
+		}
+		if loggingOptions != nil {
+			step.loggingOptions = *loggingOptions
 		}
 		return step, nil
 	}
@@ -125,16 +160,27 @@ func NewScriptStepLoader() ScriptStepLoader {
 }
 
 type ScriptStep struct {
-	Name         string
-	Code         string
-	Silent       bool
-	RunnerConfig RunnerConfig
+	Name           string
+	Code           string
+	Silent         bool
+	RunnerConfig   RunnerConfig
+	loggingOptions LoggingOptions
 }
 
 type Artifact struct {
 	Name string
 	Path string
 	Via  string
+}
+
+type LoggingOptions struct {
+	RedirectStdErrToStdOut  bool
+	SuppressStdOut          bool
+	SuppressStdErr          bool
+	ExitErrorLogLevel       string
+	LogMessagePrefix        string
+	LogMessagePrefixApp     string
+	LogMessagePrefixAppTask string
 }
 
 type RunnerConfig struct {
@@ -228,6 +274,10 @@ func (s ScriptStep) Silenced() bool {
 	return s.Silent
 }
 
+func (s ScriptStep) LoggingOpts() LoggingOptions {
+	return s.loggingOptions
+}
+
 func (s ScriptStep) GetName() string {
 	return s.Name
 }
@@ -285,9 +335,10 @@ func (t ScriptStep) runScriptWithArtifacts(script string, depended bool, context
 func (t ScriptStep) runCommand(name string, args []string, depended bool, context ExecutionContext) (string, error) {
 	applog := log.StandardLogger().WithField("app", context.app.Name)
 	taskKey := context.Key().ShortString()
-	tasklog := applog.WithField("task", taskKey)
+	tasklog :=applog.WithField("task", taskKey)
+	stepLog := applog.WithField("step", t)
 
-	applog.Infof("starting task %s", taskKey)
+	//applog.Infof("starting task %s", taskKey)
 	tasklog.Debugf("starting command %s %s", name, strings.TrimSuffix(strings.Join(args, " "), "\n"))
 
 	cmd := exec.Command(name, args...)
@@ -399,17 +450,29 @@ func (t ScriptStep) runCommand(name string, args []string, depended bool, contex
 		// Print logs to stdout and stderr only when this is the command called by the user, directly or indirectly, as a task script. not as an input
 		if !context.asInput {
 			writeToOut = func(str string) {
-				fmt.Fprint(os.Stdout, str, "\n")
+				if !t.loggingOptions.SuppressStdOut {
+					fmt.Fprint(os.Stdout, str, "\n")
+				}
 			}
 			writeToErr = func(str string) {
-				tasklog.Warn(str)
+				if !t.loggingOptions.SuppressStdErr {
+					if t.loggingOptions.RedirectStdErrToStdOut {
+						fmt.Fprint(os.Stdout, str, "\n")
+					} else {
+						stepLog.Warn(str)
+					}
+				}
 			}
 		} else {
 			writeToOut = func(str string) {
-				tasklog.Info(str)
+				if !t.loggingOptions.SuppressStdOut {
+					stepLog.Info(str)
+				}
 			}
 			writeToErr = func(str string) {
-				tasklog.Warn(str)
+				if !t.loggingOptions.SuppressStdErr {
+					stepLog.Warn(str)
+				}
 			}
 		}
 
@@ -461,11 +524,17 @@ func (t ScriptStep) runCommand(name string, args []string, depended bool, contex
 	}
 
 	if err != nil {
-		tasklog.Errorf("script step failed: %v", err)
+		logLevelString := t.loggingOptions.ExitErrorLogLevel
+		logLevel, err := log.ParseLevel(logLevelString)
+		if err != nil {
+			log.Errorf("exit_error_log_level is not specified properly: \"%s\", use one of the: \"panic\", \"fatal\", \"error\", \"warn\", \"info\", \"debug\", \"trace\"", logLevelString)
+		}
+		tasklog.Logf(logLevel, "script step failed: %v", err)
+
 		// Did the command fail because of an unsuccessful exit code
 		if exitError, ok := err.(*exec.ExitError); ok {
 			waitStatus = exitError.Sys().(syscall.WaitStatus)
-			log.Errorf("exit status was %d", waitStatus.ExitStatus())
+			tasklog.Logf(logLevel, "exit status was %d", waitStatus.ExitStatus())
 		}
 		return strings.Trim(errOut, "\n "), errors.Wrap(err, "script step failed")
 	} else {

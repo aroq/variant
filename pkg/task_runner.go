@@ -98,7 +98,8 @@ func (t *TaskRunner) Run(project *Application, asInput bool, caller ...*Task) (s
 		ctx = log.WithFields(log.Fields{})
 	}
 
-	ctx.Debugf("task %s started", t.Name.String())
+	ctx.Infof("starting task: %s", t.Name.String())
+	//ctx.Debugf("starting task: %s", t.Name.String())
 
 	var output StepStringOutput
 	var lastout StepStringOutput

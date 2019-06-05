@@ -21,6 +21,7 @@ type TaskDef struct {
 	Autodir     bool         `yaml:"autodir,omitempty"`
 	Interactive bool         `yaml:"interactive,omitempty"`
 	Private     bool         `yaml:"private,omitempty"`
+	Silent      bool         `yaml:"silent,omitempty"`
 }
 
 type TaskDefs []*TaskDef
@@ -57,6 +58,7 @@ type TaskDefV1 struct {
 	Autodir     bool                          `yaml:"autodir,omitempty"`
 	Interactive bool                          `yaml:"interactive,omitempty"`
 	Private     bool                          `yaml:"private,omitempty"`
+	Silent      bool                          `yaml:"silent,omitempty"`
 }
 
 type TaskDefV2 struct {
@@ -73,6 +75,7 @@ type TaskDefV2 struct {
 	Autodir     bool                          `yaml:"autodir,omitempty"`
 	Interactive bool                          `yaml:"interactive,omitempty"`
 	Private     bool                          `yaml:"private,omitempty"`
+	Silent      bool                          `yaml:"silent,omitempty"`
 }
 
 func (t *TaskDef) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -93,6 +96,7 @@ func (t *TaskDef) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		Inputs:      []*InputConfig{},
 		TaskDefs:    map[string]*TaskDef{},
 		StepDefs:    []map[interface{}]interface{}{},
+		Silent:      false,
 	}
 
 	if err := unmarshal(&v2); err != nil {
@@ -154,17 +158,19 @@ func (t *TaskDef) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		}
 	}
 	t.TaskDefs = TransformV2FlowConfigMapToArray(v2.TaskDefs)
-	steps, err := readStepsFromStepDefs(script, v2.Runner, v2.StepDefs)
-	if err != nil {
-		return errors.Wrapf(err, "Error while reading v2 config")
-	}
-	t.Steps = steps
+
 	t.Script = script
 	t.Autoenv = v2.Autoenv
 	t.Autodir = v2.Autodir
 	t.Interactive = v2.Interactive
 	t.Private = v2.Private
+	t.Silent = v2.Silent
 
+	steps, err := readStepsFromStepDefs(t, script, v2.Runner, v2.StepDefs)
+	if err != nil {
+		return errors.Wrapf(err, "Error while reading v2 config")
+	}
+	t.Steps = steps
 	return nil
 }
 
@@ -230,7 +236,7 @@ func LoadStep(config StepDef) (Step, error) {
 	return nil, errors.Wrapf(lastError, "all loader failed to load step")
 }
 
-func readStepsFromStepDefs(script string, runner map[string]interface{}, stepDefs []map[interface{}]interface{}) ([]Step, error) {
+func readStepsFromStepDefs(t *TaskDef, script string, runner map[string]interface{}, stepDefs []map[interface{}]interface{}) ([]Step, error) {
 	result := []Step{}
 
 	if script != "" {
@@ -241,7 +247,7 @@ func readStepsFromStepDefs(script string, runner map[string]interface{}, stepDef
 		raw := map[string]interface{}{
 			"name":   "script",
 			"script": script,
-			"silent": false,
+			"silent": t.Silent,
 		}
 		if runner != nil {
 			raw["runner"] = runner

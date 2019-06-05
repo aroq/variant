@@ -54,12 +54,12 @@ func (c StepDef) GetStringMapOrEmpty(key string) map[string]interface{} {
 	}
 }
 
-func (c StepDef) Silent() bool {
-	silent, ok := c.raw["silent"].(bool)
+func (c StepDef) GetBool(key string) bool {
+	result, ok := c.raw[key].(bool)
 	if !ok {
-		silent = false
+		result = false
 	}
-	return silent
+	return result
 }
 
 func NewStepDef(raw map[string]interface{}) StepDef {

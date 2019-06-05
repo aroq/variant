@@ -40,7 +40,7 @@ func (l IfStepLoader) LoadStep(config StepDef, context LoadingContext) (Step, er
 		Name:   config.GetName(),
 		If:     []Step{},
 		Then:   []Step{},
-		Silent: config.Silent(),
+		Silent: config.GetBool("silent"),
 	}
 
 	ifInput, ifErr := readSteps(ifArray, context)
@@ -57,6 +57,42 @@ func (l IfStepLoader) LoadStep(config StepDef, context LoadingContext) (Step, er
 
 	result.If = ifInput
 	result.Then = thenInput
+
+	var loggingOptions *LoggingOptions
+	outputOptionsContainer, ok := config.Get("logging").(map[interface{}]interface{})
+	if ok {
+		loggingOptions = &LoggingOptions{
+			SuppressStdOut:          false,
+			SuppressStdErr:          false,
+			RedirectStdErrToStdOut:  false,
+			ExitErrorLogLevel:       "error",
+			LogMessagePrefixApp:     "%s%s ≫ ",
+			LogMessagePrefixAppTask: "%s%s.%s ≫ ",
+		}
+		if v, ok := outputOptionsContainer["suppress_stdout"].(bool); ok {
+			loggingOptions.SuppressStdOut = v
+		}
+		if v, ok := outputOptionsContainer["suppress_stderr"].(bool); ok {
+			loggingOptions.SuppressStdErr = v
+		}
+		if v, ok := outputOptionsContainer["exit_error_log_level"].(string); ok {
+			loggingOptions.ExitErrorLogLevel = v
+		}
+		if v, ok := outputOptionsContainer["redirect_stderr_to_stdout"].(bool); ok {
+			loggingOptions.RedirectStdErrToStdOut = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix"].(string); ok {
+			loggingOptions.LogMessagePrefix = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix_app"].(string); ok {
+			loggingOptions.LogMessagePrefixApp = v
+		}
+		if v, ok := outputOptionsContainer["log_message_prefix_app_task"].(string); ok {
+			loggingOptions.LogMessagePrefixAppTask = v
+		}
+
+		result.loggingOptions = *loggingOptions
+	}
 
 	return result, nil
 }
@@ -102,10 +138,11 @@ func NewIfStepLoader() IfStepLoader {
 }
 
 type IfStep struct {
-	Name   string
-	If     []Step
-	Then   []Step
-	Silent bool
+	Name           string
+	If             []Step
+	Then           []Step
+	Silent         bool
+	loggingOptions LoggingOptions
 }
 
 func run(steps []Step, context ExecutionContext) (StepStringOutput, error) {
@@ -145,4 +182,8 @@ func (s IfStep) GetName() string {
 
 func (s IfStep) Silenced() bool {
 	return s.Silent
+}
+
+func (s IfStep) LoggingOpts() LoggingOptions {
+	return s.loggingOptions
 }
