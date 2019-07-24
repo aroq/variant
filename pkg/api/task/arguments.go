@@ -23,15 +23,15 @@ func NewArguments(raw ...map[string]interface{}) Arguments {
 func (in Arguments) GetString(name string) (string, error) {
 	var err error
 
-	log.Debugf("fetching argument named %s in %v", name, in)
+	log.Tracef("fetching argument named %s in %v", name, in)
 
 	result, internalError := maputil.GetStringAtPath(in, name)
-	log.Debugf("failed fetching argument %s: %v", name, internalError)
+	log.Tracef("failed fetching argument %s: %v", name, internalError)
 	if result == "" {
 		return "", nil
 	}
 
-	log.WithField("raw", in).Debugf("argument named \"%s\" fetched: %v", name, result)
+	log.WithField("raw", in).Tracef("argument named \"%s\" fetched: %v", name, result)
 
 	if internalError != nil {
 		err = errors.WithStack(internalError)
@@ -53,7 +53,7 @@ func (a Arguments) GetSubOrEmpty(path string) Arguments {
 		}
 		return NewArguments(strMap)
 	}
-	log.Debugf("no value found for %s in %v", path, a)
+	log.Tracef("no value found for %s in %v", path, a)
 	return NewArguments()
 }
 
