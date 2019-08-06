@@ -278,7 +278,7 @@ func (t ScriptStep) runCommand(name string, args []string, depended bool, contex
 	tasklog := applog.WithField("task", taskKey)
 
 	applog.Infof("starting task %s", taskKey)
-	tasklog.Debugf("starting command %s %s", name, strings.TrimSuffix(strings.Join(args, " "), "\n"))
+	tasklog.Tracef("starting command %s %s", name, strings.TrimSuffix(strings.Join(args, " "), "\n"))
 
 	cmd := exec.Command(name, args...)
 
@@ -296,7 +296,7 @@ func (t ScriptStep) runCommand(name string, args []string, depended bool, contex
 			shortKey := parentKey.ShortString()
 			path := strings.Replace(shortKey, ".", "/", -1)
 			if err != nil {
-				log.Debugf("%s does not have parent", context.Key().ShortString())
+				log.Tracef("%s does not have parent", context.Key().ShortString())
 			} else {
 				if _, err := os.Stat(path); err == nil {
 					cmd.Dir = path
@@ -435,7 +435,7 @@ func (t ScriptStep) runCommand(name string, args []string, depended bool, contex
 				break
 			}
 		}
-		log.Debugf("closing...")
+		log.Tracef("closing...")
 		close(done)
 	}
 
@@ -443,11 +443,11 @@ func (t ScriptStep) runCommand(name string, args []string, depended bool, contex
 	err := cmd.Wait()
 
 	if done != nil {
-		log.Debugf("waiting for all the stdout/stderr contents to be consumed...in case this hangs, file a bug report.")
+		log.Tracef("waiting for all the stdout/stderr contents to be consumed...in case this hangs, file a bug report.")
 
 		<-done
 
-		log.Debugf("done consuming stdout and stderr")
+		log.Tracef("done consuming stdout and stderr")
 	}
 
 	if err != nil {

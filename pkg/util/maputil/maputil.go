@@ -40,10 +40,10 @@ func GetStringAtPath(m map[string]interface{}, key string) (string, error) {
 	head := components[0]
 	rest := components[1:]
 	value, exists := m[head]
-	log.Debugf("fetching %s in %v", key, m)
+	log.Tracef("fetching %s in %v", key, m)
 	if !exists {
 
-		log.Debugf("maptuil fetched %s: %v", key, m[key])
+		log.Tracef("maptuil fetched %s: %v", key, m[key])
 
 		if value, exists := m[key]; exists {
 			if str, ok := value.(string); ok {
@@ -91,7 +91,7 @@ func SetValueAtPath(cache map[string]interface{}, keyComponents []string, value 
 	} else {
 		humanReadableValue = "<nil>"
 	}
-	log.Debugf("maptuil sets %v for %s(%s)", humanReadableValue, k, strings.Join(keyComponents, "."))
+	log.Tracef("maptuil sets %v for %s(%s)", humanReadableValue, k, strings.Join(keyComponents, "."))
 
 	if len(rest) == 0 {
 		cache[k] = value

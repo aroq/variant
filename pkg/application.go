@@ -211,7 +211,7 @@ func (p *Application) RunTask(taskName TaskName, args []string, arguments task.A
 		ctx = p.Log.WithFields(logrus.Fields{"app": p.Name, "task": taskName.ShortString()})
 	}
 
-	ctx.Debugf("app started task %s", taskName.ShortString())
+	ctx.Tracef("app started task %s", taskName.ShortString())
 
 	//provided := p.GetTmplOrTypedValueForConfigKey(taskName.ShortString(), "string")
 	//
@@ -263,7 +263,7 @@ func (p *Application) RunTask(taskName TaskName, args []string, arguments task.A
 			return "", errors.Wrapf(err, "fix your parameter value")
 		}
 		if result.Valid() {
-			ctx.Debugf("all the inputs are valid")
+			ctx.Tracef("all the inputs are valid")
 		} else {
 			varsDump, err := json.MarshalIndent(vars, "", "  ")
 			if err != nil {
@@ -283,7 +283,7 @@ func (p *Application) RunTask(taskName TaskName, args []string, arguments task.A
 			return "", errors.Wrapf(err, "app failed validating inputs: %v", doc)
 		}
 
-		ctx.WithField("variables", kv).Debugf("app bound variables for task %s", taskName.ShortString())
+		ctx.WithField("variables", kv).Tracef("app bound variables for task %s", taskName.ShortString())
 	}
 
 	taskTemplate := NewTaskTemplate(taskDef, vars)
@@ -294,7 +294,7 @@ func (p *Application) RunTask(taskName TaskName, args []string, arguments task.A
 
 	output, error := taskRunner.Run(p, asInput, caller...)
 
-	ctx.Debugf("app received output from task %s: %s", taskName.ShortString(), output)
+	ctx.Tracef("app received output from task %s: %s", taskName.ShortString(), output)
 
 	if error != nil {
 		error = errors.Wrapf(error, "%s failed running task %s", p.Name, taskName.ShortString())
@@ -365,7 +365,7 @@ func (p Application) GetTmplOrTypedValueForConfigKey(k string, tpe string, bindE
 		if any, ok := ensureType(v, tpe); ok {
 			return any, true
 		}
-		ctx.Debugf("ignoring value: found %v(%T), but unable to convert it to %s", v, v, tpe)
+		ctx.Tracef("ignoring value: found %v(%T), but unable to convert it to %s", v, v, tpe)
 
 		return nil, false
 	}
@@ -377,18 +377,18 @@ func (p Application) GetTmplOrTypedValueForConfigKey(k string, tpe string, bindE
 
 	lastIndex := strings.LastIndex(k, ".")
 
-	ctx.Debugf("fetching %s for %s", k, tpe)
+	ctx.Tracef("fetching %s for %s", k, tpe)
 
 	flagKey := fmt.Sprintf("flags.%s", k)
 	valueFromFlag := p.Viper.Get(flagKey)
-	ctx.Debugf("fetched %s: %v(%T)", flagKey, valueFromFlag, valueFromFlag)
+	ctx.Tracef("fetched %s: %v(%T)", flagKey, valueFromFlag, valueFromFlag)
 	if valueFromFlag != nil && valueFromFlag != "" {
 		if any, ok := convert(valueFromFlag); ok {
 			return any
 		}
 	}
 
-	ctx.Debugf("index: %d", lastIndex)
+	ctx.Tracef("index: %d", lastIndex)
 
 	var value interface{}
 
@@ -398,19 +398,19 @@ func (p Application) GetTmplOrTypedValueForConfigKey(k string, tpe string, bindE
 		childKey := string(a[lastIndex+1:])
 
 		parentValue := viper.Get(parentKey)
-		ctx.Debugf("viper.Get(%v): %v", parentKey, parentValue)
+		ctx.Tracef("viper.Get(%v): %v", parentKey, parentValue)
 
 		if parentValue != nil {
 
 			values := p.Viper.Sub(parentKey)
 
-			ctx.Debugf("app fetched %s: %v", parentKey, values)
+			ctx.Tracef("app fetched %s: %v", parentKey, values)
 
 			var childValue interface{}
 
 			if values != nil {
 				childValue = values.Get(childKey)
-				ctx.Debugf("app fetched %s[%s]: %v(%T)", parentKey, childKey, childValue, childValue)
+				ctx.Tracef("app fetched %s[%s]: %v(%T)", parentKey, childKey, childValue, childValue)
 				value = childValue
 			}
 		}
@@ -420,8 +420,8 @@ func (p Application) GetTmplOrTypedValueForConfigKey(k string, tpe string, bindE
 			p.Viper.BindEnv(k, strings.ToUpper(k))
 		}
 		raw := p.Viper.Get(k)
-		ctx.Debugf("app fetched raw value for key %s: %v", k, raw)
-		ctx.Debugf("type of value fetched: expected %s, got %v", tpe, reflect.TypeOf(raw))
+		ctx.Tracef("app fetched raw value for key %s: %v", k, raw)
+		ctx.Tracef("type of value fetched: expected %s, got %v", tpe, reflect.TypeOf(raw))
 		if raw == nil {
 			return nil
 		}
@@ -550,7 +550,7 @@ func (p Application) DirectInputValuesForTaskKey(taskName TaskName, args []strin
 		baseTaskKey = ""
 	}
 
-	ctx.Debugf("app started collecting inputs")
+	ctx.Tracef("app started collecting inputs")
 
 	currentTask := p.TaskRegistry.FindTask(taskName)
 	if currentTask == nil {
@@ -558,12 +558,12 @@ func (p Application) DirectInputValuesForTaskKey(taskName TaskName, args []strin
 	}
 
 	for _, input := range currentTask.ResolvedInputs {
-		ctx.Debugf("task `%s` depends on input %s", taskName, input.ShortName())
+		ctx.Tracef("task `%s` depends on input %s", taskName, input.ShortName())
 
 		var tmplOrStaticVal interface{}
 
 		if i := input.ArgumentIndex; i != nil && len(args) >= *i+1 {
-			ctx.Debugf("app found positional argument: args[%d]=%s", input.ArgumentIndex, args[*i])
+			ctx.Tracef("app found positional argument: args[%d]=%s", input.ArgumentIndex, args[*i])
 			tmplOrStaticVal = args[*i]
 		}
 
@@ -638,8 +638,8 @@ func (p Application) DirectInputValuesForTaskKey(taskName TaskName, args []strin
 					tmplOrStaticVal = output
 				}
 				if err != nil {
-					ctx.Debugf("task %#v failed. output was %#v(%T)", inTaskName, tmplOrStaticVal, tmplOrStaticVal)
-					ctx.Debug("looking for a default value")
+					ctx.Tracef("task %#v failed. output was %#v(%T)", inTaskName, tmplOrStaticVal, tmplOrStaticVal)
+					ctx.Tracef("looking for a default value")
 					// Check if any default value is given
 					if tmplOrStaticVal == nil {
 						if input.Default != nil {
@@ -665,7 +665,7 @@ func (p Application) DirectInputValuesForTaskKey(taskName TaskName, args []strin
 							default:
 								return nil, fmt.Errorf("unsupported input type `%s` found. the type should be one of: string, integer, boolean", input.TypeName())
 							}
-							ctx.Debugf("got %v(%T) from default value %s(%T)", tmplOrStaticVal, tmplOrStaticVal, input.Default, input.Default)
+							ctx.Tracef("got %v(%T) from default value %s(%T)", tmplOrStaticVal, tmplOrStaticVal, input.Default, input.Default)
 						} else if input.Name == "env" {
 							tmplOrStaticVal = ""
 						} else {
@@ -693,24 +693,24 @@ func (p Application) DirectInputValuesForTaskKey(taskName TaskName, args []strin
 		}
 
 		// Now that the tmplOrStaticVal exists, render add type it
-		p.Log.Debugf("tmplOrStaticVal=%#v", tmplOrStaticVal)
+		p.Log.Tracef("tmplOrStaticVal=%#v", tmplOrStaticVal)
 		if tmplOrStaticVal != nil {
 			var renderedValue string
 			expr, ok := tmplOrStaticVal.(string)
 			if ok {
 				taskTemplate := NewTaskTemplate(currentTask, scope)
-				p.Log.Debugf("rendering %s", expr)
+				p.Log.Tracef("rendering %s", expr)
 				r, err := taskTemplate.Render(expr, input.Name)
 				if err != nil {
 					return nil, errors.Wrap(err, "failed to render task template")
 				}
 				renderedValue = r
-				p.Log.Debugf("converting type of %v(%T) to %s", renderedValue, renderedValue, input.TypeName())
+				p.Log.Tracef("converting type of %v(%T) to %s", renderedValue, renderedValue, input.TypeName())
 				tmplOrStaticVal, err = p.parseSupportedValueFromString(renderedValue, input.TypeName())
 				if err != nil {
 					return nil, err
 				}
-				p.Log.Debugf("value after type conversion=%v(%T)", tmplOrStaticVal, tmplOrStaticVal)
+				p.Log.Tracef("value after type conversion=%v(%T)", tmplOrStaticVal, tmplOrStaticVal)
 			}
 		} else {
 			// the dependent task succeeded with no output
@@ -719,7 +719,7 @@ func (p Application) DirectInputValuesForTaskKey(taskName TaskName, args []strin
 		maputil.SetValueAtPath(values, pathComponents, tmplOrStaticVal)
 	}
 
-	ctx.WithField("values", values).Debugf("app finished collecting inputs")
+	ctx.WithField("values", values).Tracef("app finished collecting inputs")
 
 	return values, nil
 }
@@ -727,7 +727,7 @@ func (p Application) DirectInputValuesForTaskKey(taskName TaskName, args []strin
 func (p *Application) parseSupportedValueFromString(renderedValue string, typeName string) (interface{}, error) {
 	switch typeName {
 	case "string":
-		p.Log.Debugf("string=%v", renderedValue)
+		p.Log.Tracef("string=%v", renderedValue)
 		return renderedValue, nil
 	case "integer":
 		p.Log.Debugf("integer=%v", renderedValue)
@@ -824,7 +824,7 @@ func (p *Application) jsonschemaFromInputs(inputs []*InputConfig) (*gojsonschema
 			}
 		}
 	}
-	p.Log.Debugf("schema = %+v", root)
+	p.Log.Tracef("schema = %+v", root)
 	schemaLoader := gojsonschema.NewGoLoader(root)
 	return gojsonschema.NewSchema(schemaLoader)
 }

@@ -147,7 +147,7 @@ func (t *TaskRunner) Run(project *Application, asInput bool, caller ...*Task) (s
 		err = errors.Wrap(err, "Task#Run failed while running a script")
 	}
 
-	ctx.Debugf("task %s finished. out=%v, err=%v", t.Name.String(), output, err)
+	ctx.Tracef("task %s finished. out=%v, err=%v", t.Name.String(), output, err)
 
 	return output.String, err
 }
